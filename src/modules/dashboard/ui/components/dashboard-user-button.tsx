@@ -81,6 +81,7 @@ Billing
 <LogOutIcon className="size-4 text-black"/>Logout
             </Button>
           </DrawerFooter>
+          
         </DrawerContent>
       </Drawer>
     )
