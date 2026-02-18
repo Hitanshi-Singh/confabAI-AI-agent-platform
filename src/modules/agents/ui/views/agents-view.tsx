@@ -1,15 +1,29 @@
 "use client";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
+// import { Button } from "@/components/ui/button";
 import { useTRPC } from "@/trpc/client";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+// import { ResponsiveDialog } from "@/components/responsive-dialog";
 
 export const AgentsView = () => {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.agents.getMany.queryOptions());
 
-  return <div>{JSON.stringify(data, null, 2)}</div>;
+  return (
+    <div>
+      {/* <ResponsiveDialog
+        title="Responsive Test"
+        description="Responsive description"
+        open
+        onOpenChange={() => {}}
+      >
+        <Button>Some action</Button>
+      </ResponsiveDialog> */}
+      {JSON.stringify(data, null, 2)}
+    </div>
+  );
 };
 
 export const AgentsViewLoading = () => {
@@ -21,9 +35,11 @@ export const AgentsViewLoading = () => {
   );
 };
 
-export const AgentsViewError =()=>{
-  return(
-            <ErrorState title="Error loading agents" description=" Please try again later"/>
-    
-  )
-}
+export const AgentsViewError = () => {
+  return (
+    <ErrorState
+      title="Error loading agents"
+      description=" Please try again later"
+    />
+  );
+};
