@@ -28,7 +28,7 @@ export const GeneratedAvatar = ({
     });
   }
   return (
-    <Avatar className={cn(className)}>
+    <Avatar className={cn("rounded-full overflow-hidden",className)}>
       <AvatarImage src={avatar.toDataUri()} alt="Avatar"></AvatarImage>
       <AvatarFallback>{seed.charAt(0).toUpperCase()}</AvatarFallback>
     </Avatar>
