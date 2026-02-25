@@ -125,7 +125,7 @@ Billing
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer flex items-center justify-between"
-          onClick={() => onLogout}
+          onClick={() => onLogout()}
         >
           {/* apne se daale ye */}
           Logout
