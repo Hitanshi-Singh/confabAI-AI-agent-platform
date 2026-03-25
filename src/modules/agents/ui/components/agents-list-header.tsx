@@ -2,10 +2,10 @@
 import { DEFAULT_PAGE } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { PlusIcon, XCircleIcon } from "lucide-react";
-import { NewAgentDialog } from "./new-agent-dialog";
 import { useState } from "react";
 import { useAgentsFilters } from "../../hooks/use-agents-filters";
 import { AgentsSearchFilter } from "./agents-search-filter";
+import { NewAgentDialog } from "./new-agent-dialog";
 
 export const AgentsListHeader = () => {
   const [filters, setFilters] = useAgentsFilters();
