@@ -1,0 +1,2 @@
+- [Minimal changes only](feedback_minimal_changes.md) — user wants surgical edits, no incidental refactors
+- [Token efficiency](feedback_token_efficiency.md) — minimize wasted Claude API token usage; cache, cap history, don't bloat

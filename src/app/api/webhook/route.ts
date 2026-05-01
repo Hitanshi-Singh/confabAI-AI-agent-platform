@@ -2,15 +2,16 @@ import { and, eq, not } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-//   CallEndedEvent,
-//   CallTranscriptionReadyEvent,
+  CallEndedEvent,
+  CallTranscriptionReadyEvent,
   CallSessionParticipantLeftEvent,
-//   CallRecordingReadyEvent,
+  CallRecordingReadyEvent,
   CallSessionStartedEvent,
 } from "@stream-io/video-react-sdk";
 
 import { db } from "@/db";
 import { agents, meetings } from "@/db/schema";
+import { inngest } from "@/inngest/client";
 import { streamVideo } from "@/lib/stream-video";
 
 function verifySignatureWithSDK(body: string, signature: string): boolean {
@@ -90,17 +91,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const call = streamVideo.video.call("default", meetingId);
-
-    const realtimeClient = await streamVideo.video.connectOpenAi({
-      call,
-      openAiApiKey: process.env.OPENAI_API_KEY!,
-      agentUserId: existingAgent.id,
-    });
-
-    realtimeClient.updateSession({
-      instructions: existingAgent.instructions,
-    });
   } else if (eventType === "call.session_participant_left") {
     const event = payload as CallSessionParticipantLeftEvent;
 
@@ -113,8 +103,62 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const call = streamVideo.video.call("default", meetingId);
-    await call.end();
+    try {
+      const call = streamVideo.video.call("default", meetingId);
+      await call.end();
+    } catch (err) {
+      console.warn("[webhook] call.end() failed (likely already ended):", err);
+    }
+  } else if (eventType === "call.session_ended") {
+    const event = payload as CallEndedEvent;
+    const meetingId = event.call.custom?.meetingId;
+
+    if (!meetingId) {
+      return NextResponse.json(
+        { error: "Missing meetingId in call.custom" },
+        { status: 400 },
+      );
+    }
+
+    await db
+      .update(meetings)
+      .set({ status: "processing", endedAt: new Date() })
+      .where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")));
+
+    await inngest.send({
+      name: "meeting/summarize",
+      data: { meetingId },
+    });
+  } else if (eventType === "call.transcription_ready") {
+    const event = payload as CallTranscriptionReadyEvent;
+    const meetingId = event.call_cid.split(":")[1];
+
+    if (!meetingId) {
+      return NextResponse.json(
+        { error: "Missing meetingId in call_cid" },
+        { status: 400 },
+      );
+    }
+
+    await db
+      .update(meetings)
+      .set({ transcriptUrl: event.call_transcription.url })
+      .where(eq(meetings.id, meetingId));
+  } else if (eventType === "call.recording_ready") {
+    const event = payload as CallRecordingReadyEvent;
+    const meetingId = event.call_cid.split(":")[1];
+
+    if (!meetingId) {
+      return NextResponse.json(
+        { error: "Missing meetingId in call_cid" },
+        { status: 400 },
+      );
+    }
+
+    await db
+      .update(meetings)
+      .set({ recordingUrl: event.call_recording.url })
+      .where(eq(meetings.id, meetingId));
   }
   return NextResponse.json({ status: "ok" });
 }

@@ -9,9 +9,10 @@
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "dev:webhook":"ngrok http --domain=undabbled-untaciturnly-brennan.ngrok-free.dev 3000"
+    "dev:webhook": "ngrok http --domain=undabbled-untaciturnly-brennan.ngrok-free.dev 3000"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@dicebear/collection": "^9.2.4",
     "@dicebear/core": "^9.2.4",
     "@hookform/resolvers": "^5.2.2",
@@ -59,6 +60,7 @@
     "drizzle-orm": "^0.43.1",
     "embla-carousel-react": "^8.6.0",
     "humanize-duration": "^3.33.2",
+    "inngest": "^4.2.6",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.548.0",
     "nanoid": "^5.1.6",
