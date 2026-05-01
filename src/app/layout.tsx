@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@stream-io/video-react-sdk/dist/css/index.css";
 import { Inter } from "next/font/google";
 import {NuqsAdapter} from "nuqs/adapters/next"
 
