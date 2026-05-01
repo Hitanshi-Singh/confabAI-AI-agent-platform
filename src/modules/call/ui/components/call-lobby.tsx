@@ -13,7 +13,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { generateAvatarUri } from "@/lib/avatar";
 
-import "@stream-io/video-react-sdk/dist/css/index.css";
+import "@stream-io/video-react-sdk/dist/css/embedded.css";
 
 interface Props {
   onJoin: () => void;
@@ -54,30 +54,28 @@ export const CallLobby = ({ onJoin }: Props) => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-radial from-sidebar-accent to-accent">
-      <div className="py-4 px-4 flex flex-1 items-center justify-center">
+      <div className="flex flex-col items-center gap-y-4 py-4 px-4">
         <div className="flex flex-col gap-y-2 text-center">
-          <h6 className="text-lg font-medium"> Ready to Join?</h6>
+          <h6 className="text-lg font-medium">Ready to Join?</h6>
           <p className="text-sm">Set up your call before joining</p>
         </div>
         <VideoPreview
-         
           DisabledVideoPreview={
             hasBrowserMediaPermission
-            ? DisabledVideoPreview
-            :AllowBrowserPermission
+              ? DisabledVideoPreview
+              : AllowBrowserPermission
           }
         />
         <div className="flex gap-x-2">
-            <ToggleAudioPreviewButton/>
-            <ToggleVideoPreviewButton/>
-
+          <ToggleAudioPreviewButton />
+          <ToggleVideoPreviewButton />
         </div>
         <div className="flex gap-x-2 justify-between w-full">
           <Button asChild variant={"ghost"}>
-            <Link href="/meetings">Cancel </Link>
+            <Link href="/meetings">Cancel</Link>
           </Button>
           <Button onClick={onJoin}>
-            <LogInIcon  />
+            <LogInIcon />
             Join Call
           </Button>
         </div>

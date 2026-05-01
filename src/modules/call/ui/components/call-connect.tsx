@@ -12,7 +12,6 @@ import {
 } from "@stream-io/video-react-sdk";
 
 import {useTRPC} from "@/trpc/client";
-import "@stream-io/video-react-sdk/dist/css/index.css";
 import { CallUI } from "./call-ui";
 
 
@@ -62,11 +61,10 @@ const [client, setClient] = useState<StreamVideoClient>();
         _call.microphone.disable();
         setCall(_call);
         return () => {
-            if(_call.state.callingState === CallingState.LEFT){
+            if(_call.state.callingState !== CallingState.LEFT){
                 _call.leave();
-                _call.endCall();
-                setCall(undefined);
             }
+            setCall(undefined);
         }
     }, [client, meetingId]);
 

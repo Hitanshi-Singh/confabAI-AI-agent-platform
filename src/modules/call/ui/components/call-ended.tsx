@@ -1,6 +1,6 @@
 import Link  from "next/link";
 import { Button } from "@/components/ui/button";
-import "@stream-io/video-react-sdk/dist/css/index.css";
+import "@stream-io/video-react-sdk/dist/css/embedded.css";
 
 
 

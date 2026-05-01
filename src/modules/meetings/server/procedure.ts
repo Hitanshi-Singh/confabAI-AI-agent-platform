@@ -38,8 +38,10 @@ export const meetingsRouter = createTRPCRouter({
     const token = streamVideo.generateUserToken({
       user_id: ctx.auth.user.id,
       exp: expirationTime,
-      validity_in_seconds: issuedAt,
+      iat: issuedAt,
     });
+
+    return token;
   }),
   remove: protectedProcedure
     .input(z.object({ id: z.string() }))
