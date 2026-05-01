@@ -3,7 +3,6 @@ import Link  from "next/link";
 import {
   DefaultVideoPlaceholder,
   StreamVideoParticipant,
-  ToggleAudioPreviewButton,
   ToggleVideoPreviewButton,
   useCallStateHooks,
   VideoPreview,
@@ -46,11 +45,10 @@ const AllowBrowserPermission = () => {
     )
 }
 export const CallLobby = ({ onJoin }: Props) => {
-  const { useCameraState, useMicrophoneState } = useCallStateHooks();
-  const { hasBrowserPermission: hasMicPermission } = useMicrophoneState();
+  const { useCameraState } = useCallStateHooks();
   const { hasBrowserPermission: hasCameraPermission } = useCameraState();
 
-  const hasBrowserMediaPermission = hasMicPermission && hasCameraPermission;
+  const hasBrowserMediaPermission = hasCameraPermission;
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-radial from-sidebar-accent to-accent">
@@ -67,7 +65,6 @@ export const CallLobby = ({ onJoin }: Props) => {
           }
         />
         <div className="flex gap-x-2">
-          <ToggleAudioPreviewButton />
           <ToggleVideoPreviewButton />
         </div>
         <div className="flex gap-x-2 justify-between w-full">

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { agents, meetings } from "@/db/schema";
+import { agents, meetings, messages } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { and, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
 import {
   DEFAULT_PAGE,
   DEFAULT_PAGE_SIZE,
@@ -140,6 +140,33 @@ export const meetingsRouter = createTRPCRouter({
         ]);
 
       return createdMeeting;
+    }),
+
+  getTranscript: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const [existingMeeting] = await db
+        .select({ id: meetings.id })
+        .from(meetings)
+        .where(
+          and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id)),
+        );
+      if (!existingMeeting) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Meeting not found",
+        });
+      }
+      return db
+        .select({
+          id: messages.id,
+          role: messages.role,
+          content: messages.content,
+          createdAt: messages.createdAt,
+        })
+        .from(messages)
+        .where(eq(messages.meetingId, input.id))
+        .orderBy(asc(messages.createdAt));
     }),
 
   getOne: protectedProcedure
