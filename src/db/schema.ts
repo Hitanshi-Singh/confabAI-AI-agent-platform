@@ -1,6 +1,8 @@
 import { nanoid } from "nanoid";
 import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
 
+export const userTier = pgEnum("user_tier", ["free", "premium"]);
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -9,6 +11,7 @@ export const user = pgTable("user", {
     .$defaultFn(() => false)
     .notNull(),
   image: text("image"),
+  tier: userTier("tier").notNull().default("free"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

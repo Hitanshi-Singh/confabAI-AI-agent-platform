@@ -6,10 +6,11 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 
 import { auth } from "@/lib/auth";
 import { getQueryClient, trpc } from "@/trpc/server";
-import HomeView, {
-  HomeViewError,
-  HomeViewLoading,
-} from "@/modules/home/ui/views/home-view";
+import {
+  UpgradeView,
+  UpgradeViewError,
+  UpgradeViewLoading,
+} from "@/modules/subscriptions/ui/views/upgrade-view";
 
 const Page = async () => {
   const session = await auth.api.getSession({
@@ -21,14 +22,15 @@ const Page = async () => {
   }
 
   const queryClient = getQueryClient();
-  void queryClient.prefetchQuery(trpc.agents.getMany.queryOptions({}));
-  void queryClient.prefetchQuery(trpc.meetings.getMany.queryOptions({}));
+  void queryClient.prefetchQuery(
+    trpc.subscriptions.getUsage.queryOptions(),
+  );
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={<HomeViewLoading />}>
-        <ErrorBoundary fallback={<HomeViewError />}>
-          <HomeView userName={session.user.name} />
+      <Suspense fallback={<UpgradeViewLoading />}>
+        <ErrorBoundary fallback={<UpgradeViewError />}>
+          <UpgradeView />
         </ErrorBoundary>
       </Suspense>
     </HydrationBoundary>
