@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { LogOutIcon, MicIcon, MicOffIcon, SendIcon } from "lucide-react";
+import { BotIcon, Loader2Icon, LogOutIcon, MicIcon, MicOffIcon, SendIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
     SpeakerLayout,
     ToggleVideoPublishingButton
 } from "@stream-io/video-react-sdk";
+
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,8 @@ export const CallActive = ({onLeave, meetingId, meetingName}: Props) => {
     const [sending, setSending] = useState(false);
     const [recording, setRecording] = useState(false);
     const [voiceError, setVoiceError] = useState<string | null>(null);
+    const [agentSpeaking, setAgentSpeaking] = useState(false);
+    const [agentJoined, setAgentJoined] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const recRef = useRef<SpeechRecognitionLike | null>(null);
 
@@ -78,6 +82,9 @@ export const CallActive = ({onLeave, meetingId, meetingName}: Props) => {
             setChat((c) => [...c, { role: "assistant", content: text }]);
             try {
                 const utter = new SpeechSynthesisUtterance(stripMarkdown(text));
+                utter.onstart = () => setAgentSpeaking(true);
+                utter.onend = () => setAgentSpeaking(false);
+                utter.onerror = () => setAgentSpeaking(false);
                 window.speechSynthesis.speak(utter);
             } catch {}
         } catch (err) {
@@ -157,6 +164,14 @@ export const CallActive = ({onLeave, meetingId, meetingName}: Props) => {
         };
     }, []);
 
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setAgentJoined(true);
+            toast.success("AI Agent has joined the meeting");
+        }, 1500);
+        return () => clearTimeout(t);
+    }, []);
+
     return (
         <div className="flex flex-col h-full p-4 text-white gap-4">
             <div className="bg-[#101213] rounded-full p-4 flex items-center gap-4">
@@ -168,8 +183,39 @@ export const CallActive = ({onLeave, meetingId, meetingName}: Props) => {
             </div>
 
             <div className="flex-1 flex gap-4 min-h-0">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 relative">
                     <SpeakerLayout/>
+                    <div
+                        className={`absolute bottom-4 right-4 z-10 min-w-44 bg-[#101213] rounded-lg p-3 flex items-center gap-3 shadow-lg ring-2 transition-colors ${
+                            !agentJoined
+                                ? "ring-amber-500"
+                                : agentSpeaking
+                                    ? "ring-emerald-500"
+                                    : "ring-white/10"
+                        }`}
+                    >
+                        <div
+                            className={`size-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center ${
+                                agentJoined && agentSpeaking ? "animate-pulse" : ""
+                            }`}
+                        >
+                            {agentJoined ? (
+                                <BotIcon className="size-5 text-white" />
+                            ) : (
+                                <Loader2Icon className="size-5 text-white animate-spin" />
+                            )}
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-medium text-white">AI Agent</span>
+                            <span className="text-[10px] text-white/60">
+                                {!agentJoined
+                                    ? "Connecting…"
+                                    : agentSpeaking
+                                        ? "Speaking…"
+                                        : "In the meeting"}
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 <aside className="w-96 bg-[#101213] rounded-lg p-4 flex flex-col gap-3 min-h-0">
                     <h5 className="text-sm font-medium border-b border-white/10 pb-2">Chat with AI</h5>
@@ -219,6 +265,16 @@ export const CallActive = ({onLeave, meetingId, meetingName}: Props) => {
 
             <div className="bg-[#101213] rounded-full px-4 py-2 flex items-center justify-center gap-2">
                 <ToggleVideoPublishingButton />
+                <Button
+                    type="button"
+                    variant={recording ? "destructive" : "secondary"}
+                    onClick={recording ? stopRecording : startRecording}
+                    disabled={sending}
+                    title={recording ? "Stop recording" : "Click and speak to the AI agent"}
+                >
+                    {recording ? <MicOffIcon className="size-4" /> : <MicIcon className="size-4" />}
+                    {recording ? "Stop" : "Talk to AI"}
+                </Button>
                 <Button variant="destructive" onClick={onLeave}>
                     <LogOutIcon /> Leave
                 </Button>

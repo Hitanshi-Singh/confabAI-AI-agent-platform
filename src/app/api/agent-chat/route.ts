@@ -9,10 +9,21 @@ import { auth } from "@/lib/auth";
 
 const anthropic = new Anthropic();
 
-const BREVITY_RULE =
-  "Respond in 1-2 short sentences. Be direct and to the point. No preamble, no filler. " +
-  "Plain text only — no markdown, no asterisks, no hashtags, no bullet points, no code blocks. " +
-  "Your response will be spoken aloud, so write it as natural spoken language.";
+const TUTOR_BEHAVIOR = `- Be encouraging and patient.
+- If the student seems stuck, ask one short follow-up question instead of giving the full answer.
+- Stay strictly within the subject defined by your persona above.
+- Never claim to be an AI or apologize for being one.`;
+
+const VOICE_FORMAT = `- Reply in 1 to 2 short sentences, no more than 30 words.
+- Plain text only. No markdown, no asterisks, no bullets, no code fences, no headings.
+- Write as natural spoken English; prefer short common words.
+- No preamble like "Sure," "Of course," or "Great question."`;
+
+const CONTEXT_NOTE = `Only the most recent turns of the conversation are included below. Earlier turns may have been trimmed; do not refer to them.`;
+
+// Keep the prompt bounded: last 6 user/agent pairs.
+// Older context is captured by the post-meeting summary job.
+const HISTORY_TURNS = 12;
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -67,13 +78,25 @@ export async function POST(req: NextRequest) {
     .where(eq(messages.meetingId, meetingId))
     .orderBy(asc(messages.createdAt));
 
-  const systemText = `${agent.instructions || ""}\n\n${BREVITY_RULE}`.trim();
+  const systemText = [
+    "[L1 — PERSONA]",
+    agent.instructions || "",
+    "",
+    "[L2 — TUTOR BEHAVIOR]",
+    TUTOR_BEHAVIOR,
+    "",
+    "[L3 — VOICE FORMAT]",
+    VOICE_FORMAT,
+    "",
+    "[L4 — CONTEXT NOTE]",
+    CONTEXT_NOTE,
+  ].join("\n").trim();
 
   let text = "";
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 256,
+      max_tokens: 120,
       system: [
         {
           type: "text",
@@ -81,7 +104,7 @@ export async function POST(req: NextRequest) {
           cache_control: { type: "ephemeral" },
         },
       ],
-      messages: history.map((m) => ({ role: m.role, content: m.content })),
+      messages: history.slice(-HISTORY_TURNS).map((m) => ({ role: m.role, content: m.content })),
     });
 
     text = response.content
