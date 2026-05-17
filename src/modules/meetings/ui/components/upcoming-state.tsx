@@ -21,7 +21,7 @@ export const UpcomingState = ({
         description="Once you start this meeting, a summary will appear here."
         image="/upcoming.svg"
       />
-      <div className="flex flex-col-reverse lg:fkex-row lg:justify-center items-center gap-2 w-full">
+      <div className="flex flex-col-reverse lg:flex-row lg:justify-center items-center gap-2 w-full">
         <Button variant={"secondary"} className="w-full lg:w-auto"
          onClick={onCancelMeeting}
          disabled={isCancelling}>

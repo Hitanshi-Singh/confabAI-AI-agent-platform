@@ -36,7 +36,7 @@ export const summarizeMeeting = inngest.createFunction(
 
     const summary = await step.run("claude-summarize", async () => {
       const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         system:
           "You summarize meeting transcripts between a user and an AI agent. Produce a concise summary covering the main topics discussed, decisions made, and any action items. Use markdown.",

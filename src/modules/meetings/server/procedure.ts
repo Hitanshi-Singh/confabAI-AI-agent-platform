@@ -62,6 +62,33 @@ export const meetingsRouter = createTRPCRouter({
       return removedMeeting;
     }),
 
+  cancel: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // A meeting can only be cancelled while it is still upcoming. The
+      // status guard makes this safe to call without a separate check:
+      // if the meeting has already started, completed, or been cancelled,
+      // zero rows match and we throw.
+      const [cancelledMeeting] = await db
+        .update(meetings)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(meetings.id, input.id),
+            eq(meetings.userId, ctx.auth.user.id),
+            eq(meetings.status, "upcoming"),
+          ),
+        )
+        .returning();
+      if (!cancelledMeeting) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Meeting not found or no longer upcoming",
+        });
+      }
+      return cancelledMeeting;
+    }),
+
   update: protectedProcedure
     .input(meetingsUpdateSchema)
     .mutation(async ({ ctx, input }) => {
