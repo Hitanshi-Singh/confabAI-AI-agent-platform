@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5.4-mini",
-      reasoning_effort: "minimal",
+      reasoning_effort: "none",
       max_completion_tokens: 400,
       messages: chatMessages,
     });
