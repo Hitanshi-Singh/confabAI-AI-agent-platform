@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { db } from "@/db";
 import { meetings, messages } from "@/db/schema";
 import { inngest } from "@/inngest/client";
+import { isConversationEmpty } from "@/lib/meeting-logic";
 
 const openai = new OpenAI();
 
@@ -20,7 +21,7 @@ export const summarizeMeeting = inngest.createFunction(
         .orderBy(asc(messages.createdAt));
     });
 
-    if (conversation.length === 0) {
+    if (isConversationEmpty(conversation)) {
       await step.run("mark-completed-empty", async () => {
         await db
           .update(meetings)
