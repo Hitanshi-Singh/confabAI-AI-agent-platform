@@ -1,4 +1,4 @@
-import { and, eq, not } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   const eventType = (payload as Record<string, unknown>)?.type;
 
-  if (eventType === "call.session.started") {
+  if (eventType === "call.session_started") {
     const event = payload as CallSessionStartedEvent;
     const meetingId = event.call.custom?.meetingId;
 
@@ -61,10 +61,6 @@ export async function POST(req: NextRequest) {
         and(
           eq(meetings.id, meetingId),
           eq(meetings.status, "upcoming"),
-          not(eq(meetings.status, "completed")),
-          not(eq(meetings.status, "completed")),
-          not(eq(meetings.status, "cancelled")),
-          not(eq(meetings.status, "processing")),
         ),
       );
     if (!existingMeeting) {
