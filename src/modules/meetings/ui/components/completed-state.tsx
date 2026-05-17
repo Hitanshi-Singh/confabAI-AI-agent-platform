@@ -1,12 +1,13 @@
 "use client";
 
 import { format } from "date-fns";
-import { BookOpenTextIcon, FileTextIcon, VideoIcon } from "lucide-react";
+import { BookOpenTextIcon, FileTextIcon, MessageSquareIcon, VideoIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TranscriptChat } from "./transcript-chat";
 
 interface Props {
   meetingId: string;
@@ -36,6 +37,9 @@ export const CompletedState = ({ meetingId, summary }: Props) => {
           </TabsTrigger>
           <TabsTrigger value="recording">
             <VideoIcon /> Recording
+          </TabsTrigger>
+          <TabsTrigger value="ask">
+            <MessageSquareIcon /> Ask
           </TabsTrigger>
         </TabsList>
 
@@ -108,6 +112,10 @@ export const CompletedState = ({ meetingId, summary }: Props) => {
               Recording is not available.
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="ask">
+          <TranscriptChat meetingId={meetingId} />
         </TabsContent>
       </Tabs>
     </div>
