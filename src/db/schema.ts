@@ -118,3 +118,15 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const transcriptChat = pgTable("transcript_chat", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+  meetingId: text("meeting_id")
+    .notNull()
+    .references(() => meetings.id, { onDelete: "cascade" }),
+  role: messageRole("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
