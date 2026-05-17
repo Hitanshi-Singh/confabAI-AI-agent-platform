@@ -146,19 +146,6 @@ export const meetingsRouter = createTRPCRouter({
           });
         }
 
-        await streamVideo.upsertUsers([
-          {
-            id: ctx.auth.user.id,
-            name:existingAgent.name,
-            role: "user",
-            image:generateAvatarUri({
-                seed: ctx.auth.user.name,
-                variant: "initials",
-              }),
-          },
-     
-        ]);
-
       return createdMeeting;
     }),
 
@@ -239,7 +226,7 @@ export const meetingsRouter = createTRPCRouter({
           ...getTableColumns(meetings),
           agent: agents,
           duration:
-            sql<number>`EXTRACT(EPOCH FROM (${meetings.endedAt} - ${meetings.createdAt}))`.as(
+            sql<number>`EXTRACT(EPOCH FROM (${meetings.endedAt} - ${meetings.startedAt}))`.as(
               "duration",
             ),
         })
@@ -287,7 +274,7 @@ export const meetingsRouter = createTRPCRouter({
           ...getTableColumns(meetings),
           agent: agents,
           duration:
-            sql<number>`EXTRACT(EPOCH FROM (${meetings.endedAt} - ${meetings.createdAt}))`.as(
+            sql<number>`EXTRACT(EPOCH FROM (${meetings.endedAt} - ${meetings.startedAt}))`.as(
               "duration",
             ),
         })
