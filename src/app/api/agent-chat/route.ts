@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
 import { db } from "@/db";
 import { agents, meetings, messages } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
-const anthropic = new Anthropic();
+const openai = new OpenAI();
 
 const TUTOR_BEHAVIOR = `- Be encouraging and patient.
 - If the student seems stuck, ask one short follow-up question instead of giving the full answer.
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   // Load prior messages. The current user turn is NOT persisted here — it is
   // appended in-memory below and saved together with the assistant reply only
-  // after a successful Claude call, so a failed call leaves no orphan message.
+  // after a successful model call, so a failed call leaves no orphan message.
   const history = await db
     .select({ role: messages.role, content: messages.content })
     .from(messages)
@@ -89,43 +89,39 @@ export async function POST(req: NextRequest) {
     CONTEXT_NOTE,
   ].join("\n").trim();
 
+  const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: systemText },
+    ...history.slice(-HISTORY_TURNS).map(
+      (m): OpenAI.Chat.Completions.ChatCompletionMessageParam =>
+        m.role === "user"
+          ? { role: "user", content: m.content }
+          : { role: "assistant", content: m.content },
+    ),
+    { role: "user", content: userText },
+  ];
+
   let text = "";
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 120,
-      system: [
-        {
-          type: "text",
-          text: systemText,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [
-        ...history
-          .slice(-HISTORY_TURNS)
-          .map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: userText },
-      ],
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.4-mini",
+      reasoning_effort: "minimal",
+      max_completion_tokens: 400,
+      messages: chatMessages,
     });
 
-    text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    text = (response.choices[0]?.message?.content ?? "").trim();
   } catch (err) {
-    console.error("[agent-chat] anthropic error:", err);
+    console.error("[agent-chat] openai error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Anthropic call failed" },
+      { error: err instanceof Error ? err.message : "OpenAI call failed" },
       { status: 502 },
     );
   }
 
   if (!text) {
-    console.warn("[agent-chat] empty response from Claude");
+    console.warn("[agent-chat] empty response from model");
     return NextResponse.json(
-      { error: "Empty response from Claude" },
+      { error: "Empty response from the model" },
       { status: 502 },
     );
   }

@@ -1,11 +1,11 @@
 import { asc, eq } from "drizzle-orm";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
 import { db } from "@/db";
 import { meetings, messages } from "@/db/schema";
 import { inngest } from "@/inngest/client";
 
-const anthropic = new Anthropic();
+const openai = new OpenAI();
 
 export const summarizeMeeting = inngest.createFunction(
   { id: "summarize-meeting", triggers: [{ event: "meeting/summarize" }] },
@@ -34,25 +34,24 @@ export const summarizeMeeting = inngest.createFunction(
       .map((m) => `${m.role === "user" ? "User" : "Agent"}: ${m.content}`)
       .join("\n");
 
-    const summary = await step.run("claude-summarize", async () => {
-      const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system:
-          "You summarize meeting transcripts between a user and an AI agent. Produce a concise summary covering the main topics discussed, decisions made, and any action items. Use markdown.",
+    const summary = await step.run("summarize", async () => {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.4-mini",
+        reasoning_effort: "low",
+        max_completion_tokens: 2048,
         messages: [
+          {
+            role: "system",
+            content:
+              "You summarize meeting transcripts between a user and an AI agent. Produce a concise summary covering the main topics discussed, decisions made, and any action items. Use markdown.",
+          },
           {
             role: "user",
             content: `Summarize this conversation:\n\n${transcript}`,
           },
         ],
       });
-      return response.content
-        .filter(
-          (b): b is Anthropic.TextBlock => b.type === "text",
-        )
-        .map((b) => b.text)
-        .join("");
+      return response.choices[0]?.message?.content ?? "";
     });
 
     await step.run("save-summary", async () => {
