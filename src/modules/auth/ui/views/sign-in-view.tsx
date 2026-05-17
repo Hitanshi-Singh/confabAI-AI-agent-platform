@@ -43,7 +43,6 @@ export const SignInView = () => {
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    console.log("inside onSubmit");
     setError(null);
     setPending(true);
 
@@ -82,7 +81,6 @@ export const SignInView = () => {
       }
     );
   };
-  console.log("Sign in view");
   return (
     <div className="flex flex-col gap-6">
       <Card className="overflow-hidden p-0">
@@ -173,7 +171,7 @@ export const SignInView = () => {
                   </Button>
                 </div>
                 <div className="text-center text-sm">
-                  Dont&apos;t have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <Link
                     href={"/sign-up"}
                     className="underline underline-offset-4"

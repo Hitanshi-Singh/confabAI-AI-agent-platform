@@ -12,7 +12,6 @@ import {
 } from "@/constants";
 import { FREE_TIER_LIMITS } from "@/constants/subscription";
 import { TRPCError } from "@trpc/server";
-// import { TRPCError } from "@trpc/server";
 
 export const agentsRouter = createTRPCRouter({
   update: protectedProcedure
@@ -113,7 +112,6 @@ export const agentsRouter = createTRPCRouter({
         total: total.count,
         totalPages,
       };
-      // return data;
     }),
   create: protectedProcedure
     .input(agentsInsertSchema)

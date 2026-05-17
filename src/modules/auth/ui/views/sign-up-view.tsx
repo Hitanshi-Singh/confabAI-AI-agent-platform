@@ -27,8 +27,8 @@ const formSchema = z
   .object({
     name: z.string().min(1, { message: "Name is required" }),
     email: z.string().email(),
-    password: z.string().min(1, {
-      message: "Password is required",
+    password: z.string().min(8, {
+      message: "Password must be at least 8 characters",
     }),
     confirmPassword: z.string().min(1, {
       message: "Password is required",
@@ -54,7 +54,6 @@ export const SignUpView = () => {
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    console.log("inside onSubmit");
     setError(null);
     setPending(true);
 
@@ -96,7 +95,6 @@ export const SignUpView = () => {
       }
     );
   };
-  console.log("Sign in view");
   return (
     <div className="flex flex-col gap-6">
       <Card className="overflow-hidden p-0">
