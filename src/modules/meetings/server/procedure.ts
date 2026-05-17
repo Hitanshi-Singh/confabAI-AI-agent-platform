@@ -16,6 +16,7 @@ import { MeetingStatus } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 import { generateAvatarUri } from "@/lib/avatar";
 import OpenAI from "openai";
+import { isMeetingChatAllowed, formatTranscript } from "@/lib/meeting-logic";
 // import { TRPCError } from "@trpc/server";
 
 const openai = new OpenAI();
@@ -391,7 +392,7 @@ export const meetingsRouter = createTRPCRouter({
       if (!meeting) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
       }
-      if (meeting.status !== "completed") {
+      if (!isMeetingChatAllowed(meeting.status)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Q&A is only available for completed meetings",
@@ -410,9 +411,7 @@ export const meetingsRouter = createTRPCRouter({
         .where(eq(transcriptChat.meetingId, input.id))
         .orderBy(asc(transcriptChat.createdAt));
 
-      const transcriptText = transcriptRows
-        .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`)
-        .join("\n");
+      const transcriptText = formatTranscript(transcriptRows);
 
       const systemText = [
         "You answer follow-up questions about a completed tutoring session.",
