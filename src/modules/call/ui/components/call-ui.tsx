@@ -25,18 +25,24 @@ export const CallUI = ({meetingId, meetingName}:Props) => {
 
         setJoining(true);
         try {
-            await call.join({ create: true });
+            // The Stream call is already created server-side in
+            // meetings.create — join() without create:true.
+            await call.join();
             setShow("call");
         } finally {
             setJoining(false);
         }
     }
 
-    const handleLeave = ()=>{
-        if(!call) return;
-        call.endCall();
+    const handleLeave = async () => {
+        if (!call) return;
+        try {
+            await call.endCall();
+        } catch (err) {
+            console.error("[call-ui] endCall failed:", err);
+        }
         setShow("ended");
-    }
+    };
     return(
        <StreamTheme className="h-full">
         {show === "lobby" &&  <CallLobby onJoin={handleJoin} />}

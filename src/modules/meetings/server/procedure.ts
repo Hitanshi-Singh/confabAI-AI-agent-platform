@@ -23,7 +23,7 @@ export const meetingsRouter = createTRPCRouter({
       {
         id: ctx.auth.user.id,
         name: ctx.auth.user.name,
-        role: "admin",
+        role: "user",
         image:
           ctx.auth.user.image ??
           generateAvatarUri({

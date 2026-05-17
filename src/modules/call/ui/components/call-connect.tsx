@@ -30,27 +30,34 @@ export const CallConnect = ({
     const trpc = useTRPC();
     const {mutateAsync: generateToken} = useMutation(trpc.meetings.generateToken.mutationOptions());
 
-const [client, setClient] = useState<StreamVideoClient>();    
+const [client, setClient] = useState<StreamVideoClient>();
     useEffect(() => {
-            const _client = new StreamVideoClient({
-      apiKey: process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!,
-      user: {
-        id: userId,
-        name: userName,
-        image: userImage,
-      },
-      tokenProvider: generateToken, 
-    });
-            
-        setClient(_client);   
+        // getOrCreateInstance returns a shared, registry-managed client and
+        // dedupes under React StrictMode's double-mount. generateToken is
+        // intentionally NOT a dependency: its mutateAsync reference is not
+        // stable, and having it here rebuilt the client on incidental
+        // re-renders. The tokenProvider closure still sees a current
+        // generateToken.
+        const _client = StreamVideoClient.getOrCreateInstance({
+            apiKey: process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!,
+            user: {
+                id: userId,
+                name: userName,
+                image: userImage,
+            },
+            tokenProvider: generateToken,
+        });
 
+        setClient(_client);
+
+        // The SDK registry owns this shared instance's lifecycle, so the
+        // cleanup must NOT call disconnectUser() — that would disconnect a
+        // client another mount may still hold. Only clear local state.
         return () => {
-            _client.disconnectUser();
             setClient(undefined);
-        }
-            
-        }, [userId, userName, userImage, generateToken]
-    );
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId, userName, userImage]);
 
     const [call, setCall] = useState<Call>();
 
@@ -61,11 +68,14 @@ const [client, setClient] = useState<StreamVideoClient>();
         _call.microphone.disable();
         setCall(_call);
         return () => {
-            if(_call.state.callingState !== CallingState.LEFT){
+            // Only leave() a call that is actually joined — calling leave()
+            // in IDLE/UNKNOWN/etc. throws. The previous `!== LEFT` guard let
+            // those states through.
+            if (_call.state.callingState === CallingState.JOINED) {
                 _call.leave();
             }
             setCall(undefined);
-        }
+        };
     }, [client, meetingId]);
 
     if(!client || !call){
