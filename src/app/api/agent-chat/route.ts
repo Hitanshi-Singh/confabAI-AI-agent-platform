@@ -66,12 +66,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }
 
-  await db.insert(messages).values({
-    meetingId,
-    role: "user",
-    content: userText,
-  });
-
+  // Load prior messages. The current user turn is NOT persisted here — it is
+  // appended in-memory below and saved together with the assistant reply only
+  // after a successful Claude call, so a failed call leaves no orphan message.
   const history = await db
     .select({ role: messages.role, content: messages.content })
     .from(messages)
@@ -95,7 +92,7 @@ export async function POST(req: NextRequest) {
   let text = "";
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 120,
       system: [
         {
@@ -104,7 +101,12 @@ export async function POST(req: NextRequest) {
           cache_control: { type: "ephemeral" },
         },
       ],
-      messages: history.slice(-HISTORY_TURNS).map((m) => ({ role: m.role, content: m.content })),
+      messages: [
+        ...history
+          .slice(-HISTORY_TURNS)
+          .map((m) => ({ role: m.role, content: m.content })),
+        { role: "user" as const, content: userText },
+      ],
     });
 
     text = response.content
@@ -128,6 +130,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Persist both turns now, after a successful generation. Two sequential
+  // inserts (not a batch) so each row gets a distinct created_at and the
+  // transcript keeps user-before-assistant order.
+  await db.insert(messages).values({
+    meetingId,
+    role: "user",
+    content: userText,
+  });
   await db.insert(messages).values({
     meetingId,
     role: "assistant",
