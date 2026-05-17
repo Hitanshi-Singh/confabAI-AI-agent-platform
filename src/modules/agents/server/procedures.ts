@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { agents } from "@/db/schema";
+import { agents, meetings, user } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { agentsInsertSchema, agentsUpdateSchema } from "../schema";
 import { and, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
@@ -10,6 +10,7 @@ import {
   MAX_PAGE_SIZE,
   MIN_PAGE_SIZE,
 } from "@/constants";
+import { FREE_TIER_LIMITS } from "@/constants/subscription";
 import { TRPCError } from "@trpc/server";
 // import { TRPCError } from "@trpc/server";
 
@@ -51,8 +52,7 @@ export const agentsRouter = createTRPCRouter({
       const [existingAgent] = await db
         .select({
           ...getTableColumns(agents),
-          // TODO: add actual count
-          meetingCount: sql<number>`5`,
+          meetingCount: sql<number>`(SELECT COUNT(*)::int FROM ${meetings} WHERE ${meetings.agentId} = ${agents.id})`,
         })
         .from(agents)
         .where(and(
@@ -83,8 +83,7 @@ export const agentsRouter = createTRPCRouter({
       const data = await db
         .select({
           ...getTableColumns(agents),
-          // TODO: add actual count
-          meetingCount: sql<number>`5`,
+          meetingCount: sql<number>`(SELECT COUNT(*)::int FROM ${meetings} WHERE ${meetings.agentId} = ${agents.id})`,
         })
         .from(agents)
         .where(
@@ -119,6 +118,25 @@ export const agentsRouter = createTRPCRouter({
   create: protectedProcedure
     .input(agentsInsertSchema)
     .mutation(async ({ input, ctx }) => {
+      const [userRow] = await db
+        .select({ tier: user.tier })
+        .from(user)
+        .where(eq(user.id, ctx.auth.user.id));
+
+      if (userRow?.tier === "free") {
+        const [agentCountRow] = await db
+          .select({ value: count() })
+          .from(agents)
+          .where(eq(agents.userId, ctx.auth.user.id));
+
+        if (agentCountRow.value >= FREE_TIER_LIMITS.agents) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Free tier limit reached. You can create up to ${FREE_TIER_LIMITS.agents} agents.`,
+          });
+        }
+      }
+
       const [createdAgent] = await db
         .insert(agents)
         .values({

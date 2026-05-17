@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { agents, meetings, messages } from "@/db/schema";
+import { agents, meetings, messages, user } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { and, asc, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
 import {
@@ -9,6 +9,7 @@ import {
   MAX_PAGE_SIZE,
   MIN_PAGE_SIZE,
 } from "@/constants";
+import { FREE_TIER_LIMITS } from "@/constants/subscription";
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schema";
 import { MeetingStatus } from "../types";
@@ -83,6 +84,25 @@ export const meetingsRouter = createTRPCRouter({
   create: protectedProcedure
     .input(meetingsInsertSchema)
     .mutation(async ({ input, ctx }) => {
+      const [userRow] = await db
+        .select({ tier: user.tier })
+        .from(user)
+        .where(eq(user.id, ctx.auth.user.id));
+
+      if (userRow?.tier === "free") {
+        const [meetingCountRow] = await db
+          .select({ value: count() })
+          .from(meetings)
+          .where(eq(meetings.userId, ctx.auth.user.id));
+
+        if (meetingCountRow.value >= FREE_TIER_LIMITS.meetings) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Free tier limit reached. You can create up to ${FREE_TIER_LIMITS.meetings} meetings.`,
+          });
+        }
+      }
+
       const [createdMeeting] = await db
         .insert(meetings)
         .values({

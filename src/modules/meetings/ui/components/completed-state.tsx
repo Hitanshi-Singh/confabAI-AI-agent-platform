@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { BookOpenTextIcon, FileTextIcon, VideoIcon } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
@@ -36,8 +37,27 @@ export const CompletedState = ({ meetingId, summary, recordingUrl }: Props) => {
 
         <TabsContent value="summary">
           {summary ? (
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {summary}
+            <div className="text-sm leading-relaxed">
+              <ReactMarkdown
+                components={{
+                  h2: ({ children }) => (
+                    <h2 className="text-base font-semibold mt-4 mb-2 first:mt-0">
+                      {children}
+                    </h2>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc pl-5 space-y-1 mb-2">
+                      {children}
+                    </ul>
+                  ),
+                  li: ({ children }) => <li>{children}</li>,
+                  p: ({ children }) => (
+                    <p className="leading-relaxed mb-2">{children}</p>
+                  ),
+                }}
+              >
+                {summary}
+              </ReactMarkdown>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">

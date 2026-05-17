@@ -2,7 +2,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useTRPC } from "@/trpc/client";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ export const MeetingForm = ({
   initialValues,
 }: MeetingFormProps) => {
   const trpc = useTRPC();
-  // const router = useRouter();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [openAgentDialog, setOpenAgentDialog] = useState(false);
@@ -54,14 +54,15 @@ export const MeetingForm = ({
     trpc.meetings.create.mutationOptions({
       onSuccess: async (data) => {
         await queryClient.invalidateQueries(trpc.meetings.getMany.queryOptions({}));
-// TODO: invalidate free tier usage
-       
+        await queryClient.invalidateQueries(trpc.subscriptions.getUsage.queryOptions());
+
         onSuccess?.(data.id);
       },
       onError: (error) => {
-        toast.error(error.message)
-
-      //  TODO: Check if the error code is "FORBIDDEN", redirect to /upgrade
+        toast.error(error.message);
+        if (error.data?.code === "FORBIDDEN") {
+          router.push("/upgrade");
+        }
       },
     }),
   );

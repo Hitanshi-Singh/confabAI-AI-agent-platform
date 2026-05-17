@@ -2,7 +2,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useTRPC } from "@/trpc/client";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
@@ -34,21 +34,22 @@ export const AgentForm = ({
   initialValues,
 }: AgentFormProps) => {
   const trpc = useTRPC();
-  // const router = useRouter();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const createAgent = useMutation(
     trpc.agents.create.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries(trpc.agents.getMany.queryOptions({}));
-// TODO: invalidate free tier usage
-       
+        await queryClient.invalidateQueries(trpc.subscriptions.getUsage.queryOptions());
+
         onSuccess?.();
       },
       onError: (error) => {
-        toast.error(error.message)
-
-      //  TODO: Check if the error code is "FORBIDDEN", redirect to /upgrade
+        toast.error(error.message);
+        if (error.data?.code === "FORBIDDEN") {
+          router.push("/upgrade");
+        }
       },
     }),
   );
@@ -131,6 +132,7 @@ export const AgentForm = ({
                 <Textarea
                   {...field}
                   placeholder="e.g. You are a helpful math assistant that can answer questions and help with assignments"
+                  className="max-h-60 overflow-y-auto"
                 />
               </FormControl>
               <FormMessage />

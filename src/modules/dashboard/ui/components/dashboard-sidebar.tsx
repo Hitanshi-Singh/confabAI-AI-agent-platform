@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { DashboardUserButton } from "./dashboard-user-button";
+import { DashboardUsageStrip } from "./dashboard-usage-strip";
 
 
 const firstSection = [
@@ -91,6 +92,7 @@ export const DashboardSidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <DashboardUsageStrip />
       </SidebarContent>
       <SidebarFooter className="text-white">
         <DashboardUserButton/>
