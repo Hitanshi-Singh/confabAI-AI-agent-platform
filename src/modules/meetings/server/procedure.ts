@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { agents, meetings, messages, user } from "@/db/schema";
+import { agents, meetings, messages, transcriptChat, user } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { and, asc, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
 import {
@@ -15,7 +15,10 @@ import { meetingsInsertSchema, meetingsUpdateSchema } from "../schema";
 import { MeetingStatus } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 import { generateAvatarUri } from "@/lib/avatar";
+import OpenAI from "openai";
 // import { TRPCError } from "@trpc/server";
+
+const openai = new OpenAI();
 
 export const meetingsRouter = createTRPCRouter({
   generateToken: protectedProcedure.mutation(async ({ ctx }) => {
@@ -341,5 +344,139 @@ export const meetingsRouter = createTRPCRouter({
         totalPages,
       };
       // return data;
+    }),
+
+  getTranscriptChat: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const [existingMeeting] = await db
+        .select({ id: meetings.id })
+        .from(meetings)
+        .where(
+          and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id)),
+        );
+      if (!existingMeeting) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+      }
+      return db
+        .select({
+          id: transcriptChat.id,
+          role: transcriptChat.role,
+          content: transcriptChat.content,
+          createdAt: transcriptChat.createdAt,
+        })
+        .from(transcriptChat)
+        .where(eq(transcriptChat.meetingId, input.id))
+        .orderBy(asc(transcriptChat.createdAt));
+    }),
+
+  askTranscript: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        question: z.string().min(1).max(2000),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const [meeting] = await db
+        .select({
+          id: meetings.id,
+          status: meetings.status,
+          summary: meetings.summary,
+        })
+        .from(meetings)
+        .where(
+          and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id)),
+        );
+      if (!meeting) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+      }
+      if (meeting.status !== "completed") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Q&A is only available for completed meetings",
+        });
+      }
+
+      const transcriptRows = await db
+        .select({ role: messages.role, content: messages.content })
+        .from(messages)
+        .where(eq(messages.meetingId, input.id))
+        .orderBy(asc(messages.createdAt));
+
+      const priorQa = await db
+        .select({ role: transcriptChat.role, content: transcriptChat.content })
+        .from(transcriptChat)
+        .where(eq(transcriptChat.meetingId, input.id))
+        .orderBy(asc(transcriptChat.createdAt));
+
+      const transcriptText = transcriptRows
+        .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`)
+        .join("\n");
+
+      const systemText = [
+        "You answer follow-up questions about a completed tutoring session.",
+        "Base every answer ONLY on the session summary and transcript below.",
+        "If the answer is not contained in them, say you do not have that information from this session.",
+        "Be concise. Light markdown is allowed.",
+        "",
+        "[SESSION SUMMARY]",
+        meeting.summary || "(no summary was generated)",
+        "",
+        "[SESSION TRANSCRIPT]",
+        transcriptText || "(no conversation was recorded)",
+      ].join("\n");
+
+      let answer = "";
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-5.4-mini",
+          reasoning_effort: "low",
+          max_completion_tokens: 1536,
+          messages: [
+            { role: "system", content: systemText },
+            ...priorQa.map(
+              (m): OpenAI.Chat.Completions.ChatCompletionMessageParam =>
+                m.role === "user"
+                  ? { role: "user", content: m.content }
+                  : { role: "assistant", content: m.content },
+            ),
+            { role: "user", content: input.question },
+          ],
+        });
+        answer = (response.choices[0]?.message?.content ?? "").trim();
+      } catch (err) {
+        console.error("[meetings.askTranscript] openai error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err instanceof Error ? err.message : "OpenAI call failed",
+        });
+      }
+
+      if (!answer) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Empty response from the model",
+        });
+      }
+
+      // Persist both turns only after a successful generation, so a failed
+      // model call leaves no orphan question row. Two sequential inserts keep
+      // distinct created_at values and user-before-assistant order.
+      await db.insert(transcriptChat).values({
+        meetingId: input.id,
+        role: "user",
+        content: input.question,
+      });
+      const [assistantMessage] = await db
+        .insert(transcriptChat)
+        .values({
+          meetingId: input.id,
+          role: "assistant",
+          content: answer,
+        })
+        .returning();
+
+      return { answer, assistantMessage };
     }),
 });
