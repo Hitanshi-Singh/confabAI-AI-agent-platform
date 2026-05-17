@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { BookOpenTextIcon, FileTextIcon, VideoIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,14 +11,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 interface Props {
   meetingId: string;
   summary: string | null;
-  recordingUrl: string | null;
 }
 
-export const CompletedState = ({ meetingId, summary, recordingUrl }: Props) => {
+export const CompletedState = ({ meetingId, summary }: Props) => {
   const trpc = useTRPC();
   const { data: transcript } = useSuspenseQuery(
     trpc.meetings.getTranscript.queryOptions({ id: meetingId }),
   );
+  const recordingQuery = useQuery({
+    ...trpc.meetings.getRecording.queryOptions({ id: meetingId }),
+    staleTime: 0,
+    gcTime: 0,
+  });
 
   return (
     <div className="bg-white rounded-lg p-4">
@@ -89,11 +93,19 @@ export const CompletedState = ({ meetingId, summary, recordingUrl }: Props) => {
         </TabsContent>
 
         <TabsContent value="recording">
-          {recordingUrl ? (
-            <video controls src={recordingUrl} className="w-full rounded" />
+          {recordingQuery.isLoading ? (
+            <div className="text-sm text-muted-foreground">
+              Loading recording...
+            </div>
+          ) : recordingQuery.data?.url ? (
+            <video
+              controls
+              src={recordingQuery.data.url}
+              className="w-full rounded"
+            />
           ) : (
             <div className="text-sm text-muted-foreground">
-              Recording is not available yet.
+              Recording is not available.
             </div>
           )}
         </TabsContent>

@@ -87,7 +87,6 @@ export const MeetingIdView = ({ meetingId }: Props) => {
           <CompletedState
             meetingId={meetingId}
             summary={data.summary}
-            recordingUrl={data.recordingUrl}
           />
         )}
         {isUpcoming && <UpcomingState
