@@ -20,11 +20,10 @@ function verifySignatureWithSDK(body: string, signature: string): boolean {
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-signature");
-  const apiKey = req.headers.get("x-api-key");
 
-  if (!signature || !apiKey) {
+  if (!signature) {
     return NextResponse.json(
-      { error: "Missing signature or api key" },
+      { error: "Missing signature" },
       { status: 400 },
     );
   }
@@ -116,15 +115,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await db
+    const [updated] = await db
       .update(meetings)
       .set({ status: "processing", endedAt: new Date() })
-      .where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")));
+      .where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")))
+      .returning();
 
-    await inngest.send({
-      name: "meeting/summarize",
-      data: { meetingId },
-    });
+    if (updated) {
+      await inngest.send({
+        name: "meeting/summarize",
+        data: { meetingId },
+      });
+    }
   } else if (eventType === "call.transcription_ready") {
     const event = payload as CallTranscriptionReadyEvent;
     const meetingId = event.call_cid.split(":")[1];
