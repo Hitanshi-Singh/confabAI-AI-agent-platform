@@ -189,6 +189,48 @@ export const meetingsRouter = createTRPCRouter({
         .orderBy(asc(messages.createdAt));
     }),
 
+  getRecording: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const [existingMeeting] = await db
+        .select({ id: meetings.id, recordingUrl: meetings.recordingUrl })
+        .from(meetings)
+        .where(
+          and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id)),
+        );
+      if (!existingMeeting) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Meeting not found",
+        });
+      }
+
+      // recording_url is treated only as an existence flag. Stream's stored
+      // URL is a signed link that expires after ~2 weeks, so we never serve
+      // it directly. If it was never set, the recording_ready webhook never
+      // fired -> no recording exists -> skip the Stream API call. (If the
+      // webhook is unreliable, fix it there; do not hit Stream on every read
+      // of every completed meeting to compensate.)
+      if (!existingMeeting.recordingUrl) {
+        return { url: null };
+      }
+
+      // A recording exists: fetch a freshly-signed URL from Stream on every
+      // read. Sort by end_time descending — the SDK does not guarantee
+      // ordering of the recordings array.
+      try {
+        const call = streamVideo.video.call("default", input.id);
+        const { recordings } = await call.listRecordings();
+        const latest = [...recordings].sort(
+          (a, b) => b.end_time.getTime() - a.end_time.getTime(),
+        )[0];
+        return { url: latest?.url ?? null };
+      } catch (err) {
+        console.error("[meetings.getRecording] listRecordings failed:", err);
+        return { url: null };
+      }
+    }),
+
   getOne: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
